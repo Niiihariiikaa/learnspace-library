@@ -213,7 +213,7 @@ const Books = () => {
           
           {/* Book results */}
           <div className="lg:col-span-3">
-            {/* Results count and sort */}
+            {/* Results count */}
             <div className="flex justify-between items-center mb-6">
               <p className="text-gray-600">
                 {filteredBooks.length} {filteredBooks.length === 1 ? 'result' : 'results'} found

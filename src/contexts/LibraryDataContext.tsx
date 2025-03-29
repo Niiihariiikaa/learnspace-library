@@ -1,4 +1,3 @@
-
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Book, BorrowedBook, Notification, BookRequest } from '@/types';
 import { useAuth } from './AuthContext';
@@ -24,6 +23,7 @@ interface LibraryDataContextType {
   renewBook: (borrowId: string) => void;
   approveBookRequest: (requestId: string) => void;
   rejectBookRequest: (requestId: string) => void;
+  bookRequests: BookRequest[];
 }
 
 const LibraryDataContext = createContext<LibraryDataContextType | undefined>(undefined);
@@ -108,7 +108,7 @@ export const LibraryDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
         return {
           ...b,
           returnDate: new Date(),
-          status: 'returned',
+          status: 'returned' as const,
           // Calculate fine if overdue (in a real app, this would be more sophisticated)
           fine: new Date() > b.dueDate ? 5 : 0 // $5 fine if overdue
         };
@@ -237,7 +237,7 @@ export const LibraryDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (r.id === requestId) {
         return {
           ...r,
-          status: 'approved',
+          status: 'approved' as const,
           responseDate: new Date()
         };
       }
@@ -271,7 +271,7 @@ export const LibraryDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (r.id === requestId) {
         return {
           ...r,
-          status: 'rejected',
+          status: 'rejected' as const,
           responseDate: new Date()
         };
       }
@@ -409,7 +409,8 @@ export const LibraryDataProvider: React.FC<{ children: React.ReactNode }> = ({ c
       deleteBook,
       renewBook,
       approveBookRequest,
-      rejectBookRequest
+      rejectBookRequest,
+      bookRequests: bookRequestsData
     }}>
       {children}
     </LibraryDataContext.Provider>
