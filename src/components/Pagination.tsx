@@ -7,6 +7,7 @@ import {
   PaginationLink,
   PaginationNext,
   PaginationPrevious,
+  PaginationEllipsis,
 } from "@/components/ui/pagination";
 
 interface BookPaginationProps {
@@ -52,7 +53,7 @@ const BookPagination: React.FC<BookPaginationProps> = ({
             if (number === 2 || number === totalPages - 1) {
               return (
                 <PaginationItem key={`ellipsis-${number}`}>
-                  <span className="px-2 py-1">...</span>
+                  <PaginationEllipsis />
                 </PaginationItem>
               );
             }

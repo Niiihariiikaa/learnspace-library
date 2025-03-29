@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { BookCard } from '@/components';
+import { BookCard, BookPagination } from '@/components';
 import { Book } from '@/types';
 import { Search, Filter, X } from 'lucide-react';
 
@@ -42,6 +42,10 @@ const Books = () => {
   const [showFilters, setShowFilters] = useState(false);
   const [filteredBooks, setFilteredBooks] = useState<Book[]>([]);
   
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const booksPerPage = 9;
+  
   // Search for books whenever search parameters change
   useEffect(() => {
     const filters: Record<string, string> = {};
@@ -60,6 +64,7 @@ const Books = () => {
     
     const results = searchBooks(initialQuery, filters);
     setFilteredBooks(results);
+    setCurrentPage(1); // Reset to first page whenever filters change
   }, [searchBooks, initialQuery, category, availableOnly, ebooksOnly]);
   
   // Update URL when search parameters change
@@ -104,6 +109,18 @@ const Books = () => {
   // Toggle filters panel on mobile
   const toggleFilters = () => {
     setShowFilters(!showFilters);
+  };
+  
+  // Get current books for pagination
+  const indexOfLastBook = currentPage * booksPerPage;
+  const indexOfFirstBook = indexOfLastBook - booksPerPage;
+  const currentBooks = filteredBooks.slice(indexOfFirstBook, indexOfLastBook);
+  const totalPages = Math.ceil(filteredBooks.length / booksPerPage);
+  
+  // Change page
+  const handlePageChange = (pageNumber: number) => {
+    setCurrentPage(pageNumber);
+    window.scrollTo(0, 0); // Scroll to top when changing page
   };
 
   return (
@@ -176,7 +193,7 @@ const Books = () => {
                     <SelectValue placeholder="All Categories" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Categories</SelectItem>
+                    <SelectItem value="all">All Categories</SelectItem>
                     <SelectItem value="Fiction">Fiction</SelectItem>
                     <SelectItem value="Non-Fiction">Non-Fiction</SelectItem>
                     <SelectItem value="Academic">Academic</SelectItem>
@@ -221,12 +238,22 @@ const Books = () => {
             </div>
             
             {/* Results grid */}
-            {filteredBooks.length > 0 ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                {filteredBooks.map(book => (
-                  <BookCard key={book.id} book={book} />
-                ))}
-              </div>
+            {currentBooks.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {currentBooks.map(book => (
+                    <BookCard key={book.id} book={book} />
+                  ))}
+                </div>
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <BookPagination 
+                    currentPage={currentPage}
+                    totalPages={totalPages}
+                    onPageChange={handlePageChange}
+                  />
+                )}
+              </>
             ) : (
               <div className="text-center py-12">
                 <h3 className="text-xl font-semibold text-gray-700 mb-2">No books found</h3>
