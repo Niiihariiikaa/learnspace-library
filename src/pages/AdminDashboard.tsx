@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useLibraryData } from '@/contexts/LibraryDataContext';
 import { useToast } from "@/components/ui/use-toast";
 import { Link } from 'react-router-dom';
+import { BookPagination } from '@/components';
 import {
   Card,
   CardContent,
@@ -66,10 +67,16 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Book, UserCheck, BookOpen, CheckCircle, X, Edit, Trash, Plus, Users, Library } from 'lucide-react';
+import { Book as BookIcon, UserCheck, BookOpen, CheckCircle, X, Edit, Trash, Plus, Users, Library, AlertTriangle } from 'lucide-react';
 import { useForm } from "react-hook-form";
+import { Book } from '@/types';
 
-const BookForm = ({ onSubmit, defaultValues = {} }) => {
+interface BookFormProps {
+  onSubmit: (data: any) => void;
+  defaultValues?: Partial<Book>;
+}
+
+const BookForm: React.FC<BookFormProps> = ({ onSubmit, defaultValues = {} }) => {
   const form = useForm({
     defaultValues: {
       title: defaultValues.title || '',
@@ -322,7 +329,13 @@ const AdminDashboard = () => {
   const { books, userBorrowedBooks, bookRequests, addBook, editBook, deleteBook, approveBookRequest, rejectBookRequest } = useLibraryData();
   const { toast } = useToast();
   const [isAddBookOpen, setIsAddBookOpen] = useState(false);
-  const [editingBook, setEditingBook] = useState(null);
+  const [editingBook, setEditingBook] = useState<Book | null>(null);
+  
+  // Pagination state
+  const [currentBookPage, setCurrentBookPage] = useState(1);
+  const [currentBorrowedPage, setCurrentBorrowedPage] = useState(1);
+  const [currentRequestPage, setCurrentRequestPage] = useState(1);
+  const itemsPerPage = 8;
   
   // Format date
   const formatDate = (date: Date) => {
@@ -334,7 +347,7 @@ const AdminDashboard = () => {
   };
   
   // Handle add book form submission
-  const handleAddBook = (data) => {
+  const handleAddBook = (data: any) => {
     const available = data.availableCopies > 0;
     
     // Create new book object
@@ -353,7 +366,7 @@ const AdminDashboard = () => {
   };
   
   // Handle edit book form submission
-  const handleEditBook = (data) => {
+  const handleEditBook = (data: any) => {
     if (!editingBook) return;
     
     const available = data.availableCopies > 0;
@@ -405,13 +418,30 @@ const AdminDashboard = () => {
   
   // Calculate stats
   const totalBooks = books.length;
-  const totalBorrowedBooks = userBorrowedBooks.filter(b => b.status === 'borrowed' || b.status === 'overdue').length;
+  const activeBorrowedBooks = userBorrowedBooks.filter(b => b.status === 'borrowed' || b.status === 'overdue');
+  const totalBorrowedBooks = activeBorrowedBooks.length;
   const totalBookRequests = bookRequests.filter(r => r.status === 'pending').length;
-  const totalOverdueBooks = userBorrowedBooks.filter(b => {
+  const overdueBooks = userBorrowedBooks.filter(b => {
     const dueDate = new Date(b.dueDate);
     const today = new Date();
     return dueDate < today && b.status === 'borrowed';
-  }).length;
+  });
+  const totalOverdueBooks = overdueBooks.length;
+  
+  // Get paginated data
+  const paginateData = (data: any[], page: number) => {
+    const startIndex = (page - 1) * itemsPerPage;
+    return data.slice(startIndex, startIndex + itemsPerPage);
+  };
+  
+  const paginatedBooks = paginateData(books, currentBookPage);
+  const paginatedBorrowedBooks = paginateData(activeBorrowedBooks, currentBorrowedPage);
+  const paginatedRequests = paginateData(bookRequests, currentRequestPage);
+  
+  // Total pages calculation
+  const bookTotalPages = Math.ceil(books.length / itemsPerPage);
+  const borrowedTotalPages = Math.ceil(activeBorrowedBooks.length / itemsPerPage);
+  const requestsTotalPages = Math.ceil(bookRequests.length / itemsPerPage);
 
   return (
     <div className="min-h-screen bg-gray-50 py-10">
@@ -426,7 +456,7 @@ const AdminDashboard = () => {
         
         {/* Dashboard summary cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-white">
+          <Card className="bg-white shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-semibold flex items-center">
                 <Library className="mr-2 h-5 w-5 text-library-primary" />
@@ -439,7 +469,7 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
           
-          <Card className="bg-white">
+          <Card className="bg-white shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-semibold flex items-center">
                 <BookOpen className="mr-2 h-5 w-5 text-library-accent" />
@@ -452,7 +482,7 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
           
-          <Card className="bg-white">
+          <Card className="bg-white shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-semibold flex items-center">
                 <Users className="mr-2 h-5 w-5 text-library-secondary" />
@@ -465,10 +495,10 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
           
-          <Card className="bg-white">
+          <Card className="bg-white shadow-sm hover:shadow-md transition-shadow">
             <CardHeader className="pb-2">
               <CardTitle className="text-lg font-semibold flex items-center">
-                <AlertDialog className="mr-2 h-5 w-5 text-red-500" />
+                <AlertTriangle className="mr-2 h-5 w-5 text-red-500" />
                 Overdue Books
               </CardTitle>
             </CardHeader>
@@ -478,6 +508,23 @@ const AdminDashboard = () => {
             </CardContent>
           </Card>
         </div>
+        
+        {/* Overdue books alert */}
+        {totalOverdueBooks > 0 && (
+          <Card className="bg-red-50 border-red-200 mb-6">
+            <CardContent className="p-4">
+              <div className="flex items-start">
+                <AlertTriangle className="h-5 w-5 text-red-600 mr-3 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-red-700">Attention Required: {totalOverdueBooks} Overdue Books</h3>
+                  <p className="text-red-600 text-sm mt-1">
+                    There are currently {totalOverdueBooks} books past their due date. Consider sending reminders to borrowers.
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
         
         {/* Add book button */}
         <div className="mb-6 flex justify-end">
@@ -503,9 +550,15 @@ const AdminDashboard = () => {
         {/* Main tabs */}
         <Tabs defaultValue="manage-books" className="w-full">
           <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="manage-books">Manage Books</TabsTrigger>
-            <TabsTrigger value="borrowed-books">Borrowed Books</TabsTrigger>
-            <TabsTrigger value="book-requests">Book Requests</TabsTrigger>
+            <TabsTrigger value="manage-books" className="text-sm sm:text-base">
+              <BookIcon className="h-4 w-4 mr-2 hidden sm:inline" /> Manage Books
+            </TabsTrigger>
+            <TabsTrigger value="borrowed-books" className="text-sm sm:text-base">
+              <BookOpen className="h-4 w-4 mr-2 hidden sm:inline" /> Borrowed Books
+            </TabsTrigger>
+            <TabsTrigger value="book-requests" className="text-sm sm:text-base">
+              <UserCheck className="h-4 w-4 mr-2 hidden sm:inline" /> Book Requests
+            </TabsTrigger>
           </TabsList>
           
           {/* Manage Books Tab */}
@@ -524,23 +577,23 @@ const AdminDashboard = () => {
                       <TableRow>
                         <TableHead>Title</TableHead>
                         <TableHead>Author</TableHead>
-                        <TableHead>Category</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Copies</TableHead>
+                        <TableHead className="hidden md:table-cell">Category</TableHead>
+                        <TableHead className="hidden md:table-cell">Status</TableHead>
+                        <TableHead className="hidden md:table-cell">Copies</TableHead>
                         <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {books.map(book => (
-                        <TableRow key={book.id}>
+                      {paginatedBooks.map(book => (
+                        <TableRow key={book.id} className="hover:bg-gray-50">
                           <TableCell className="font-medium">
                             <Link to={`/books/${book.id}`} className="hover:underline">
                               {book.title}
                             </Link>
                           </TableCell>
                           <TableCell>{book.author}</TableCell>
-                          <TableCell>{book.category}</TableCell>
-                          <TableCell>
+                          <TableCell className="hidden md:table-cell">{book.category}</TableCell>
+                          <TableCell className="hidden md:table-cell">
                             {book.available ? (
                               <Badge variant="outline" className="bg-green-100 text-green-800 border-green-300">
                                 Available
@@ -551,7 +604,7 @@ const AdminDashboard = () => {
                               </Badge>
                             )}
                           </TableCell>
-                          <TableCell>
+                          <TableCell className="hidden md:table-cell">
                             {book.availableCopies}/{book.totalCopies}
                           </TableCell>
                           <TableCell className="text-right">
@@ -610,6 +663,17 @@ const AdminDashboard = () => {
                     </TableBody>
                   </Table>
                 </div>
+                
+                {/* Pagination for books */}
+                {bookTotalPages > 1 && (
+                  <div className="mt-4">
+                    <BookPagination
+                      currentPage={currentBookPage}
+                      totalPages={bookTotalPages}
+                      onPageChange={setCurrentBookPage}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -630,14 +694,14 @@ const AdminDashboard = () => {
                       <TableRow>
                         <TableHead>Book</TableHead>
                         <TableHead>Borrower</TableHead>
-                        <TableHead>Borrow Date</TableHead>
+                        <TableHead className="hidden md:table-cell">Borrow Date</TableHead>
                         <TableHead>Due Date</TableHead>
                         <TableHead>Status</TableHead>
-                        <TableHead>Renewals</TableHead>
+                        <TableHead className="hidden md:table-cell">Renewals</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {userBorrowedBooks.filter(b => b.status !== 'returned').map(borrow => {
+                      {paginatedBorrowedBooks.map(borrow => {
                         const book = books.find(b => b.id === borrow.bookId);
                         
                         if (!book) return null;
@@ -647,14 +711,14 @@ const AdminDashboard = () => {
                         const isOverdue = dueDate < today;
                         
                         return (
-                          <TableRow key={borrow.id}>
+                          <TableRow key={borrow.id} className={isOverdue ? "bg-red-50 hover:bg-red-100" : "hover:bg-gray-50"}>
                             <TableCell className="font-medium">
                               <Link to={`/books/${book.id}`} className="hover:underline">
                                 {book.title}
                               </Link>
                             </TableCell>
                             <TableCell>User ID: {borrow.userId}</TableCell>
-                            <TableCell>{formatDate(borrow.borrowDate)}</TableCell>
+                            <TableCell className="hidden md:table-cell">{formatDate(borrow.borrowDate)}</TableCell>
                             <TableCell>{formatDate(borrow.dueDate)}</TableCell>
                             <TableCell>
                               {isOverdue ? (
@@ -667,13 +731,24 @@ const AdminDashboard = () => {
                                 </Badge>
                               )}
                             </TableCell>
-                            <TableCell>{borrow.renewalCount}/2</TableCell>
+                            <TableCell className="hidden md:table-cell">{borrow.renewalCount}/2</TableCell>
                           </TableRow>
                         );
                       })}
                     </TableBody>
                   </Table>
                 </div>
+                
+                {/* Pagination for borrowed books */}
+                {borrowedTotalPages > 1 && (
+                  <div className="mt-4">
+                    <BookPagination
+                      currentPage={currentBorrowedPage}
+                      totalPages={borrowedTotalPages}
+                      onPageChange={setCurrentBorrowedPage}
+                    />
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
@@ -688,26 +763,26 @@ const AdminDashboard = () => {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {bookRequests.length > 0 ? (
+                {paginatedRequests.length > 0 ? (
                   <div className="rounded-md border">
                     <Table>
                       <TableHeader>
                         <TableRow>
                           <TableHead>Title</TableHead>
                           <TableHead>Author</TableHead>
-                          <TableHead>Requested By</TableHead>
-                          <TableHead>Request Date</TableHead>
+                          <TableHead className="hidden md:table-cell">Requested By</TableHead>
+                          <TableHead className="hidden md:table-cell">Request Date</TableHead>
                           <TableHead>Status</TableHead>
                           <TableHead className="text-right">Actions</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {bookRequests.map(request => (
-                          <TableRow key={request.id}>
+                        {paginatedRequests.map(request => (
+                          <TableRow key={request.id} className="hover:bg-gray-50">
                             <TableCell className="font-medium">{request.title}</TableCell>
                             <TableCell>{request.author || 'Not specified'}</TableCell>
-                            <TableCell>User ID: {request.userId}</TableCell>
-                            <TableCell>{formatDate(request.createdAt)}</TableCell>
+                            <TableCell className="hidden md:table-cell">User ID: {request.userId}</TableCell>
+                            <TableCell className="hidden md:table-cell">{formatDate(request.createdAt)}</TableCell>
                             <TableCell>
                               {request.status === 'pending' ? (
                                 <Badge variant="outline" className="bg-yellow-100 text-yellow-800 border-yellow-300">
@@ -757,6 +832,17 @@ const AdminDashboard = () => {
                     <BookOpen className="h-12 w-12 mx-auto text-gray-400 mb-3" />
                     <h3 className="text-lg font-medium text-gray-900 mb-1">No book requests</h3>
                     <p className="text-gray-500">There are no book requests to display.</p>
+                  </div>
+                )}
+                
+                {/* Pagination for requests */}
+                {requestsTotalPages > 1 && (
+                  <div className="mt-4">
+                    <BookPagination
+                      currentPage={currentRequestPage}
+                      totalPages={requestsTotalPages}
+                      onPageChange={setCurrentRequestPage}
+                    />
                   </div>
                 )}
               </CardContent>
